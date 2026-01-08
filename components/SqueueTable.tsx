@@ -8,12 +8,18 @@ export const SqueueTable: React.FC = () => {
     const [loading, setLoading] = useState(false);
     const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
 
+    // Pagination State
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 25;
+
     const loadData = useCallback(async () => {
         setLoading(true);
         try {
             const data = await fetchSqueueData();
             setJobs(data);
             setLastUpdated(new Date());
+            // Reset to page 1 on new data? Optional, but safer.
+            // setCurrentPage(1); 
         } catch (err) {
             console.error(err);
         } finally {
@@ -24,6 +30,16 @@ export const SqueueTable: React.FC = () => {
     useEffect(() => {
         loadData();
     }, [loadData]);
+
+    const totalPages = Math.ceil(jobs.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const currentJobs = jobs.slice(startIndex, startIndex + itemsPerPage);
+
+    const handlePageChange = (newPage: number) => {
+        if (newPage >= 1 && newPage <= totalPages) {
+            setCurrentPage(newPage);
+        }
+    };
 
     return (
         <div className="bg-slate-800 rounded-xl shadow-lg border border-slate-700 overflow-hidden mb-8">
@@ -39,14 +55,19 @@ export const SqueueTable: React.FC = () => {
                         </p>
                     </div>
                 </div>
-                <button 
-                    onClick={loadData}
-                    disabled={loading}
-                    className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-cyan-400 rounded-lg text-sm font-semibold transition-all hover:shadow-lg disabled:opacity-50 active:scale-95"
-                >
-                    <RefreshIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
-                    <span>Refresh</span>
-                </button>
+                <div className="flex gap-4 items-center">
+                    <span className="text-xs text-slate-400 hidden sm:inline-block">
+                        Showing {jobs.length > 0 ? startIndex + 1 : 0} - {Math.min(startIndex + itemsPerPage, jobs.length)} of {jobs.length}
+                    </span>
+                    <button 
+                        onClick={loadData}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 bg-slate-700 hover:bg-slate-600 text-cyan-400 rounded-lg text-sm font-semibold transition-all hover:shadow-lg disabled:opacity-50 active:scale-95"
+                    >
+                        <RefreshIcon className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                        <span>Refresh</span>
+                    </button>
+                </div>
             </div>
 
             <div className="overflow-x-auto">
@@ -64,14 +85,14 @@ export const SqueueTable: React.FC = () => {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-slate-700 text-sm text-slate-300">
-                        {jobs.length === 0 ? (
+                        {currentJobs.length === 0 ? (
                             <tr>
                                 <td colSpan={8} className="p-8 text-center text-slate-500 italic">
                                     {loading ? 'Checking queue...' : 'No running jobs found or unable to fetch queue data.'}
                                 </td>
                             </tr>
                         ) : (
-                            jobs.map((job) => (
+                            currentJobs.map((job) => (
                                 <tr key={job.jobId} className="hover:bg-slate-700/50 transition-colors">
                                     <td className="p-4 font-mono text-cyan-400">{job.jobId}</td>
                                     <td className="p-4"><span className="bg-slate-700 px-2 py-1 rounded text-xs text-slate-300">{job.partition}</span></td>
@@ -91,6 +112,28 @@ export const SqueueTable: React.FC = () => {
                     </tbody>
                 </table>
             </div>
+
+            {totalPages > 1 && (
+                <div className="p-4 border-t border-slate-700 flex justify-between items-center bg-slate-800/50">
+                    <button 
+                        onClick={() => handlePageChange(currentPage - 1)} 
+                        disabled={currentPage === 1}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium border border-slate-600"
+                    >
+                        Previous
+                    </button>
+                    <span className="text-slate-400 text-sm py-2">
+                        Page <span className="text-white font-bold">{currentPage}</span> of {totalPages}
+                    </span>
+                    <button 
+                        onClick={() => handlePageChange(currentPage + 1)} 
+                        disabled={currentPage === totalPages}
+                        className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-slate-200 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm font-medium border border-slate-600"
+                    >
+                        Next
+                    </button>
+                </div>
+            )}
         </div>
     );
 };

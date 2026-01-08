@@ -1,10 +1,12 @@
-import React, { useState, useMemo } from 'react';
+import React, { useMemo } from 'react';
 import { SlurmJob } from '../types';
 import { UserCircleIcon, ServerStackIcon, ClockIcon } from './icons';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend, CartesianGrid } from 'recharts';
 
 interface UserStatsProps {
     jobs: SlurmJob[];
+    query: string;
+    onQueryChange: (query: string) => void;
 }
 
 const formatSeconds = (totalSeconds: number): string => {
@@ -35,26 +37,19 @@ const STATE_COLORS = {
 };
 const statesToTrack: (keyof typeof STATE_COLORS)[] = ['COMPLETED', 'FAILED', 'CANCELLED', 'TIMEOUT', 'NODE_FAIL', 'RUNNING'];
 
-const UserStats: React.FC<UserStatsProps> = ({ jobs }) => {
-    const [query, setQuery] = useState('*');
+const UserStats: React.FC<UserStatsProps> = ({ jobs, query, onQueryChange }) => {
 
     const { stats, userJobDistribution, partitionDistribution } = useMemo(() => {
-        const trimmedQuery = query.trim().toLowerCase();
-        if (!trimmedQuery) return { stats: null, userJobDistribution: [], partitionDistribution: [] };
-
-        const selectedJobs = trimmedQuery.endsWith('*')
-            ? jobs.filter(job => job.user.toLowerCase().startsWith(trimmedQuery.slice(0, -1)))
-            : jobs.filter(job => job.user.toLowerCase() === trimmedQuery);
-
-        if (selectedJobs.length === 0) {
+        // jobs passed in are already filtered by the query in the parent component.
+        if (jobs.length === 0) {
             return { stats: null, userJobDistribution: [], partitionDistribution: [] };
         }
 
-        const totalJobs = selectedJobs.length;
-        const totalElapsedSeconds = selectedJobs.reduce((acc, j) => acc + j.elapsedSeconds, 0);
+        const totalJobs = jobs.length;
+        const totalElapsedSeconds = jobs.reduce((acc, j) => acc + j.elapsedSeconds, 0);
         const avgRuntime = totalJobs > 0 ? totalElapsedSeconds / totalJobs : 0;
 
-        const usersData = selectedJobs.reduce<Record<string, any>>((acc, job) => {
+        const usersData = jobs.reduce<Record<string, any>>((acc, job) => {
             const user = job.user;
             if (!acc[user]) {
                 acc[user] = { user, totalJobs: 0 };
@@ -67,7 +62,7 @@ const UserStats: React.FC<UserStatsProps> = ({ jobs }) => {
             return acc;
         }, {});
         
-        const partitionCounts = selectedJobs.reduce<Record<string, number>>((acc, job) => {
+        const partitionCounts = jobs.reduce<Record<string, number>>((acc, job) => {
             acc[job.partition] = (acc[job.partition] || 0) + 1;
             return acc;
         }, {});
@@ -87,7 +82,7 @@ const UserStats: React.FC<UserStatsProps> = ({ jobs }) => {
             userJobDistribution: distribution,
             partitionDistribution: partDistribution,
         };
-    }, [jobs, query]);
+    }, [jobs]);
 
     const renderContent = () => {
         if (!query.trim()) {
@@ -182,7 +177,7 @@ const UserStats: React.FC<UserStatsProps> = ({ jobs }) => {
                 <input
                     type="text"
                     value={query}
-                    onChange={(e) => setQuery(e.target.value)}
+                    onChange={(e) => onQueryChange(e.target.value)}
                     placeholder="Search for a user or use * as a wildcard (e.g., proy*)"
                     className="w-full bg-slate-700 border border-slate-600 rounded-lg py-2 pl-10 pr-4 text-white placeholder-slate-400 focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 outline-none transition"
                 />

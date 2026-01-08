@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import { SlurmJob } from '../types';
 import StatCard from './StatCard';
 import JobsByUserChart from './JobsByUserChart';
@@ -35,6 +35,8 @@ const formatSeconds = (totalSeconds: number): string => {
 };
 
 const Dashboard: React.FC<DashboardProps> = ({ jobs, timeRange, onTimeRangeChange, onReset }) => {
+  const [userQuery, setUserQuery] = useState('*');
+
   const stats = useMemo(() => {
     const totalJobs = jobs.length;
     const uniqueUsers = new Set(jobs.map(j => j.user)).size;
@@ -49,6 +51,25 @@ const Dashboard: React.FC<DashboardProps> = ({ jobs, timeRange, onTimeRangeChang
       avgRuntime: formatSeconds(avgRuntime),
     };
   }, [jobs]);
+
+  // Filter jobs for both UserStats and JobsTable based on the userQuery
+  const filteredByUserJobs = useMemo(() => {
+    const trimmedQuery = userQuery.trim().toLowerCase();
+    
+    // If query is empty, UserStats usually prompts to enter user. 
+    // We return empty array here to be consistent, or all jobs? 
+    // UserStats default is '*' which shows all. If user clears it, it shows prompt.
+    if (!trimmedQuery) return []; 
+
+    if (trimmedQuery === '*') return jobs;
+
+    if (trimmedQuery.endsWith('*')) {
+        const prefix = trimmedQuery.slice(0, -1);
+        return jobs.filter(job => job.user.toLowerCase().startsWith(prefix));
+    } else {
+        return jobs.filter(job => job.user.toLowerCase() === trimmedQuery);
+    }
+  }, [jobs, userQuery]);
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-7xl mx-auto">
@@ -92,11 +113,15 @@ const Dashboard: React.FC<DashboardProps> = ({ jobs, timeRange, onTimeRangeChang
       </section>
       
       <section className="mt-8">
-        <UserStats jobs={jobs} />
+        <UserStats 
+            jobs={filteredByUserJobs} 
+            query={userQuery} 
+            onQueryChange={setUserQuery} 
+        />
       </section>
 
       <section className="mt-8">
-        <JobsTable jobs={jobs} />
+        <JobsTable jobs={filteredByUserJobs} />
       </section>
     </div>
   );
