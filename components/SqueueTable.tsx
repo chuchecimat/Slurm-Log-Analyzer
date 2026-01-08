@@ -10,7 +10,7 @@ export const SqueueTable: React.FC = () => {
 
     // Pagination State
     const [currentPage, setCurrentPage] = useState(1);
-    const itemsPerPage = 25;
+    const itemsPerPage = 10;
 
     const loadData = useCallback(async () => {
         setLoading(true);
